@@ -27,55 +27,50 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
-                .csrf(AbstractHttpConfigurer::disable)
-                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-                .authorizeHttpRequests(auth -> auth
+            .csrf(AbstractHttpConfigurer::disable)
+            .cors(cors -> cors.configurationSource(corsConfigurationSource())) // Kích hoạt CORS với cấu hình bên dưới
+            .authorizeHttpRequests(auth -> auth
 
-                        // Đăng ký, Đăng nhập
-                        .requestMatchers("/api/users/register", "/api/users/login").permitAll()
+                // 1. Đăng ký, Đăng nhập
+                .requestMatchers("/api/users/register", "/api/users/login").permitAll()
 
-                        // Xem danh sách và chi tiết Sản phẩm, Danh mục (GET only)
-                        .requestMatchers(HttpMethod.GET, "/api/categories/**", "/api/products/**").permitAll()
+                // 2. Xem danh sách và chi tiết Sản phẩm, Danh mục (GET only)
+                .requestMatchers(HttpMethod.GET, "/api/categories/**", "/api/products/**").permitAll()
 
-                        // Xem ảnh sản phẩm (Rất quan trọng để hiển thị frontend)
-                        .requestMatchers(HttpMethod.GET, "/api/products/images/**", "/api/images/**").permitAll()
-                        
-                        // 👇 MỞ QUYỀN XEM ẢNH TRONG THƯ MỤC UPLOAD
-                        .requestMatchers("/images/**").permitAll()
+                // 3. Xem ảnh sản phẩm (Rất quan trọng để hiển thị frontend)
+                .requestMatchers(HttpMethod.GET, "/api/products/images/**", "/api/images/**").permitAll()
+                
+                // 4. MỞ QUYỀN XEM ẢNH TRONG THƯ MỤC UPLOAD
+                .requestMatchers("/images/**").permitAll()
 
-                        // 👇 CẤU HÌNH API UPLOAD (QUAN TRỌNG)
-                        // Nếu muốn ai cũng upload được (để test): .permitAll()
-                        // Nếu chỉ Admin được upload: .hasRole("ADMIN")
-                        .requestMatchers("/api/upload/**").permitAll()
+                // 5. CẤU HÌNH API UPLOAD
+                .requestMatchers("/api/upload/**").permitAll() // Test xong nhớ đổi lại role nếu cần
 
-                        // Quản lý Category (Thêm, Sửa, Xóa)
-                        .requestMatchers(HttpMethod.POST, "/api/categories/**").hasRole("ADMIN")
-                        .requestMatchers(HttpMethod.PUT, "/api/categories/**").hasRole("ADMIN")
-                        .requestMatchers(HttpMethod.DELETE, "/api/categories/**").hasRole("ADMIN")
+                // 6. Quản lý Category (ADMIN)
+                .requestMatchers(HttpMethod.POST, "/api/categories/**").hasRole("ADMIN")
+                .requestMatchers(HttpMethod.PUT, "/api/categories/**").hasRole("ADMIN")
+                .requestMatchers(HttpMethod.DELETE, "/api/categories/**").hasRole("ADMIN")
 
-                        // Quản lý Product (Thêm, Sửa, Xóa)
-                        .requestMatchers(HttpMethod.POST, "/api/products/**").hasRole("ADMIN")
-                        .requestMatchers(HttpMethod.PUT, "/api/products/**").hasRole("ADMIN")
-                        .requestMatchers(HttpMethod.DELETE, "/api/products/**").hasRole("ADMIN")
+                // 7. Quản lý Product (ADMIN)
+                .requestMatchers(HttpMethod.POST, "/api/products/**").hasRole("ADMIN")
+                .requestMatchers(HttpMethod.PUT, "/api/products/**").hasRole("ADMIN")
+                .requestMatchers(HttpMethod.DELETE, "/api/products/**").hasRole("ADMIN")
 
-                        // Quản lý Đơn hàng (Dành riêng cho Admin)
-                        .requestMatchers("/api/orders/get-all-orders").hasRole("ADMIN") // Cụ thể hoá API admin
-                        .requestMatchers("/api/orders/update-status/**").hasRole("ADMIN")
+                // 8. Quản lý Đơn hàng (Admin)
+                .requestMatchers("/api/orders/get-all-orders").hasRole("ADMIN")
+                .requestMatchers("/api/orders/update-status/**").hasRole("ADMIN")
 
-                        // Đặt hàng (POST)
-                        .requestMatchers(HttpMethod.POST, "/api/orders/**").authenticated()
-                        .requestMatchers("/api/payment/**").authenticated()
-                        
-                        // Xem lịch sử đơn hàng, chi tiết đơn hàng (GET)
-                        .requestMatchers(HttpMethod.GET, "/api/orders/**").authenticated()
+                // 9. Đặt hàng & User
+                .requestMatchers(HttpMethod.POST, "/api/orders/**").authenticated()
+                .requestMatchers("/api/payment/**").authenticated()
+                .requestMatchers(HttpMethod.GET, "/api/orders/**").authenticated()
+                .requestMatchers("/api/users/details").authenticated()
+                .requestMatchers(HttpMethod.PUT, "/api/users/details/**").authenticated()
 
-                        // Xem/Sửa thông tin cá nhân (User)
-                        .requestMatchers("/api/users/details").authenticated()
-                        .requestMatchers(HttpMethod.PUT, "/api/users/details/**").authenticated()
-
-                        // Tất cả các request khác chưa khai báo -> Phải đăng nhập mới được vào
-                        .anyRequest().authenticated())
-                .addFilterBefore(jwtTokenFilter, UsernamePasswordAuthenticationFilter.class);
+                // Các request khác
+                .anyRequest().authenticated())
+            
+            .addFilterBefore(jwtTokenFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }
@@ -83,14 +78,16 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        // Cho phép cả localhost:5173 (Vite) và 3000 (Create React App)
-        configuration.setAllowedOrigins(List.of("http://localhost:5173", "http://localhost:3000"));
-        // Cho phép tất cả các method quan trọng, bao gồm OPTIONS (cho preflight check của CORS)
+        
+        // --- SỬA QUAN TRỌNG TẠI ĐÂY ---
+        // Thay vì setAllowedOrigins cố định, ta dùng setAllowedOriginPatterns("*")
+        // Điều này cho phép Vercel, Render, Localhost hay bất cứ đâu đều gọi được API
+        configuration.setAllowedOriginPatterns(List.of("*")); 
+        
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD")); 
-        // Cho phép tất cả header để tránh lỗi thiếu header
         configuration.setAllowedHeaders(Arrays.asList("*"));
         configuration.setExposedHeaders(List.of("x-auth-token"));
-        configuration.setAllowCredentials(true);
+        configuration.setAllowCredentials(true); // Cho phép gửi cookie/auth header
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
