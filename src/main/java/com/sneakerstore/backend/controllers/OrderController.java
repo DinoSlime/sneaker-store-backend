@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("api/orders") // Hoặc để cứng là "/api/orders" nếu chưa cấu hình prefix
 @RequiredArgsConstructor
+@CrossOrigin("*")
 public class OrderController {
 
     private final OrderService orderService;

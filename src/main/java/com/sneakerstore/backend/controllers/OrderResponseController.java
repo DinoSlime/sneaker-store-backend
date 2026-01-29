@@ -1,9 +1,12 @@
 package com.sneakerstore.backend.controllers;
 
+import org.springframework.web.bind.annotation.CrossOrigin;
+
 import com.fasterxml.jackson.annotation.JsonProperty; // 👇 Import cái này
 import lombok.Data;
 
 @Data
+@CrossOrigin("*")
 public class OrderResponseController {
     
     // 👇 Thêm dòng này để map đúng trường ID từ React gửi lên

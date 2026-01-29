@@ -17,6 +17,7 @@ import java.util.UUID;
 @RequestMapping("/api/upload") // Đã thêm dấu "/" cho chuẩn
 @CrossOrigin("*") // Cho phép React gọi API
 @RequiredArgsConstructor // Tự động Inject Cloudinary
+
 public class FileUploadController {
 
     private final Cloudinary cloudinary;
